@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
-import 'package:notes/model/NotesModel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+import '../../model/note_model.dart';
+
 
 class NoteCreateScreen extends StatefulWidget {
+  const NoteCreateScreen({super.key});
+
   @override
   _NoteCreateScreenState createState() => _NoteCreateScreenState();
 }
@@ -12,47 +17,53 @@ class NoteCreateScreen extends StatefulWidget {
 class _NoteCreateScreenState extends State<NoteCreateScreen> {
   final quill.QuillController _controller = quill.QuillController.basic();
   final TextEditingController _titleController = TextEditingController();
-  final Box notesBox = Hive.box('notesBox');
 
-  void saveNote() {
-  final title = _titleController.text.trim();
-  final content = _controller.document.toPlainText().trim();
-  final createdDate = DateTime.now().toString().substring(0, 16);
+  Future<void> saveNote() async {
+    final title = _titleController.text.trim();
+    final content = _controller.document.toPlainText().trim();
+    final createdDate = DateTime.now().toString().substring(0, 16);
 
-  if (title.isNotEmpty && content.isNotEmpty) {
-    final newNote = Note(
-      title: title,
-      content: content,
-      createdDate: createdDate,
-      important: false,
-    );
+    if (title.isNotEmpty && content.isNotEmpty) {
+      final newNote = Note(
+        title: title,
+        content: content,
+        createdDate: createdDate,
+        important: false,
+      );
 
-    notesBox.add(newNote.toMap());
-    notesBox.flush(); // Ensure the data is written to disk
-    Navigator.pop(context);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Title and content cannot be empty'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      List<String>? notesList = prefs.getStringList('notesList') ?? [];
+      notesList.add(jsonEncode(newNote.toMap()));
+      await prefs.setStringList('notesList', notesList);
+
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Title and content cannot be empty'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
-}
 
+  Future<List<Note>> getNotes() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? notesList = prefs.getStringList('notesList') ?? [];
+    return notesList.map((note) => Note.fromMap(jsonDecode(note))).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        
         title: Text(
           'Create Note',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.5,
-            color:Colors.white
+            color: Colors.white,
           ),
         ),
         centerTitle: true,
@@ -73,7 +84,7 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
               icon: Icon(Icons.done),
               onPressed: saveNote,
               tooltip: 'Save Note',
-              color:Colors.white,
+              color: Colors.white,
             ),
           ),
         ],
@@ -101,12 +112,13 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
                   borderRadius: BorderRadius.circular(15),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: Colors.deepPurple, width: 2),
+                  borderSide:
+                      BorderSide(color: Colors.deepPurple, width: 2),
                 ),
-                // suffixIcon: Icon(Icons.title, color: Colors.deepPurple),
               ),
             ),
             SizedBox(height: 20),
@@ -162,13 +174,11 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
                   showAlignmentButtons: false,
                   showDividers: false,
                   showSearchButton: false,
-              
                   showLineHeightButton: false,
                   showSuperscript: false,
                   showHeaderStyle: false,
                   showFontFamily: false,
                   showSubscript: false,
-               
                   showFontSize: false,
                   showSmallButton: false,
                   showClipboardCut: false,

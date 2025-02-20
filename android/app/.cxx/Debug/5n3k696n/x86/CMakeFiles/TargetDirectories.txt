@@ -1,0 +1,2 @@
+/Users/arunakshu/Downloads/notesapp/android/app/.cxx/Debug/5n3k696n/x86/CMakeFiles/edit_cache.dir
+/Users/arunakshu/Downloads/notesapp/android/app/.cxx/Debug/5n3k696n/x86/CMakeFiles/rebuild_cache.dir
