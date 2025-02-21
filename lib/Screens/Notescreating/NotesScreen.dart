@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart'; // Add this import
+import 'package:notes/Screens/Notescreating/widgets/NoteCard.dart';
+import 'package:notes/Screens/Notescreating/widgets/NoteSearch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:notes/model/note_model.dart';
 
@@ -15,6 +18,7 @@ class _NotesScreenState extends State<NotesScreen> {
   String selectedCategory = 'All';
   String searchQuery = "";
   List<String> categories = ['All'];
+  List<String> tags = [];
   Set<int> selectedNotes = {};
   bool isSelectionMode = false;
 
@@ -24,13 +28,64 @@ class _NotesScreenState extends State<NotesScreen> {
     _loadNotes();
     _loadCategories();
   }
+// Show confirmation dialog for deletion
+  void _showDeleteDialog(String category) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Category'),
+          content: Text('Are you sure you want to delete "$category"? All notes under this category will also be deleted.'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Delete'),
+              onPressed: () {
+                _deleteCategory(category);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Delete category and associated notes
+  void _deleteCategory(String category) {
+    setState(() {
+      // Remove category
+      categories.remove(category);
+
+      // Remove notes under the deleted category
+      notes.removeWhere((note) => note.tags == category);
+    });
+    _saveCategories();
+    _saveNotes();
+  }
 
   Future<void> _loadCategories() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      // Load saved categories from SharedPreferences
+      List<String> savedCategories = prefs.getStringList('categories') ?? [];
+
+      // Ensure 'All' is always the first category
       setState(() {
-        categories = prefs.getStringList('categories') ?? ['All'];
+        categories = ['All', ...savedCategories];
+        tags = [
+          'None',
+          ...savedCategories
+        ]; // If you also want to load tags similarly
       });
+
+      print(tags); // For debugging
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load categories: $e')),
@@ -41,7 +96,10 @@ class _NotesScreenState extends State<NotesScreen> {
   Future<void> _saveCategories() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('categories', categories);
+      List<String> categoriesToSave =
+          categories.where((category) => category != 'All').toList();
+      await prefs.setStringList('categories', categoriesToSave);
+      _loadCategories();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save categories: $e')),
@@ -54,7 +112,8 @@ class _NotesScreenState extends State<NotesScreen> {
       final prefs = await SharedPreferences.getInstance();
       final notesJson = prefs.getStringList('notesList') ?? [];
       setState(() {
-        notes = notesJson.map((note) => Note.fromMap(json.decode(note))).toList();
+        notes =
+            notesJson.map((note) => Note.fromMap(json.decode(note))).toList();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,55 +135,69 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   void _showTagDialog(int index) {
-    String selectedTags = ''; // To store selected tags
+    String selectedTag = notes[index].tags ?? ''; // Initialize with current tag
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Add Tags to Note"),
-        content: SingleChildScrollView(
-          child: Column(
-            children: categories.map((tag) {
-              return CheckboxListTile(
-                title: Text(tag),
-                value: selectedTags.contains(tag),
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      selectedTags=tag;
-                    } else {
-                      selectedTags='';
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                notes[index].tags = selectedTags;
-                _saveNotes();
-              });
-              Navigator.pop(context);
-            },
-            child: Text("Save"),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("Add Tags to Note"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: tags.map((tag) {
+                    return RadioListTile(
+                      key: Key(tag),
+                      title: Text(tag),
+                      value: tag,
+                      groupValue: selectedTag,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTag = value.toString();
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      notes[index].tags = selectedTag;
+                      _saveNotes();
+                      _loadNotes();
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(isSelectionMode ? "${selectedNotes.length} Selected" : 'Notes App'),
+        leading: isSelectionMode?IconButton(onPressed:()=>{
+          
+          setState(() {
+            selectedNotes={};
+          isSelectionMode=false;
+        })}, icon:Icon(Icons.cancel)):null,
+        title: Text(
+            isSelectionMode ? "${selectedNotes.length} Selected" : 'Notes App'),
         actions: [
           if (isSelectionMode)
             IconButton(
@@ -153,22 +226,29 @@ class _NotesScreenState extends State<NotesScreen> {
                 itemBuilder: (context, index) {
                   final Note note = notes[index];
 
-                  if ((selectedCategory == 'All' || note.category == selectedCategory) &&
-                      (searchQuery.isEmpty || note.title!.toLowerCase().contains(searchQuery.toLowerCase()))) {
-                    return Dismissible(
-                      key: Key(index.toString()), // Ensure each note has a unique key
-                      direction: DismissDirection.endToStart, // Swipe left to right
-                      background: Container(
-                        color: Colors.blue,
-                        alignment: Alignment.centerRight,
-                        padding: EdgeInsets.only(right: 20),
-                        child: Icon(Icons.label, color: Colors.white),
+                  if ((selectedCategory == 'All' ||
+                          note.tags == selectedCategory) &&
+                      (searchQuery.isEmpty ||
+                          note.title!
+                              .toLowerCase()
+                              .contains(searchQuery.toLowerCase()))) {
+                    return Slidable(
+                      key: Key(index
+                          .toString()), // Ensure each note has a unique key
+                      endActionPane: ActionPane(
+                        motion: const DrawerMotion(),
+                        children: [
+                          SlidableAction(
+                            onPressed: (context) => _showTagDialog(index),
+                            backgroundColor: Colors.blue,
+                            icon: Icons.label,
+                            label: 'Add To Tag',
+                          ),
+                        ],
                       ),
-                      onDismissed: (direction) {
-                        _showTagDialog(index); // Show tag dialog when swiped
-                      },
-                      child: _NoteCard(
+                      child: NoteCard(
                         note: note,
+                        index:index,
                         isSelected: selectedNotes.contains(index),
                         onTap: () => _toggleNoteSelection(index),
                         onLongPress: () => _enterSelectionMode(index),
@@ -185,7 +265,8 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/noteCreateScreen').then((_) => _refreshNotes());
+          Navigator.pushNamed(context, '/noteCreateScreen')
+              .then((_) => _refreshNotes());
         },
         child: Icon(Icons.add),
       ),
@@ -196,6 +277,7 @@ class _NotesScreenState extends State<NotesScreen> {
     await _loadNotes();
   }
 
+  // Build category chips
   Widget _buildCategoryChips() {
     return SizedBox(
       height: 50,
@@ -206,14 +288,22 @@ class _NotesScreenState extends State<NotesScreen> {
           if (index < categories.length) {
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: ChoiceChip(
-                label: Text(categories[index]),
-                selected: selectedCategory == categories[index],
-                onSelected: (selected) {
-                  setState(() {
-                    selectedCategory = categories[index];
-                  });
+              child: GestureDetector(
+                onLongPress: () {
+                  if(categories[index]!='All'){
+                        _showDeleteDialog(categories[index]);
+                  }
+                
                 },
+                child: ChoiceChip(
+                  label: Text(categories[index]),
+                  selected: selectedCategory == categories[index],
+                  onSelected: (selected) {
+                    setState(() {
+                      selectedCategory = categories[index];
+                    });
+                  },
+                ),
               ),
             );
           } else {
@@ -227,7 +317,6 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-    // Add Tag Dialog
   void _showAddTagDialog() {
     TextEditingController tagController = TextEditingController();
     showDialog(
@@ -261,7 +350,6 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-
   void _toggleNoteSelection(int index) {
     setState(() {
       if (selectedNotes.contains(index)) {
@@ -284,9 +372,6 @@ class _NotesScreenState extends State<NotesScreen> {
     setState(() {
       notes[index].important = !notes[index].important;
       _saveNotes();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Note ${notes[index].important ? 'starred' : 'unstarred'}')),
-      );
     });
   }
 
@@ -295,7 +380,8 @@ class _NotesScreenState extends State<NotesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Delete Notes"),
-        content: Text("Are you sure you want to delete ${selectedNotes.length} notes?"),
+        content: Text(
+            "Are you sure you want to delete ${selectedNotes.length} notes?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -304,7 +390,10 @@ class _NotesScreenState extends State<NotesScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                notes = notes.where((note) => !selectedNotes.contains(notes.indexOf(note))).toList();
+                notes = notes
+                    .where(
+                        (note) => !selectedNotes.contains(notes.indexOf(note)))
+                    .toList();
                 selectedNotes.clear();
                 isSelectionMode = false;
                 _saveNotes();
@@ -315,93 +404,6 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _NoteCard extends StatelessWidget {
-  final Note note;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  final VoidCallback onStarPressed;
-
-  const _NoteCard({
-    required this.note,
-    required this.isSelected,
-    required this.onTap,
-    required this.onLongPress,
-    required this.onStarPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: onLongPress,
-      onTap: onTap,
-      child: Card(
-        color: isSelected ? Colors.blue.withOpacity(0.5) : Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: ListTile(
-          title: Text(note.title ?? "No Title"),
-          subtitle: Text(note.createdDate ?? "No Date"),
-          trailing: IconButton(
-            icon: Icon(note.important ? Icons.star : Icons.star_border),
-            onPressed: onStarPressed,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class NotesSearch extends SearchDelegate {
-  final List<Note> notes;
-  NotesSearch(this.notes);
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: Icon(Icons.clear),
-        onPressed: () {
-          query = "";
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    final results = notes.where((note) {
-      return note.title!.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-
-    return ListView(
-      children: results.map((note) => ListTile(
-        title: Text(note.title!),
-        subtitle: Text(note.createdDate!),
-      )).toList(),
     );
   }
 }

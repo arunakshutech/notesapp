@@ -20,7 +20,7 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
 
   Future<void> saveNote() async {
     final title = _titleController.text.trim();
-    final content = _controller.document.toPlainText().trim();
+    final content = jsonEncode(_controller.document.toDelta().toJson());
     final createdDate = DateTime.now().toString().substring(0, 16);
 
     if (title.isNotEmpty && content.isNotEmpty) {
