@@ -6,6 +6,20 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        debug {
+            storeFile file('/Users/arunakshu/Downloads/arun')
+            storePassword 'arun123'
+            keyAlias 'key0'
+            keyPassword 'arun123'
+        }
+        release {
+            storeFile file('/Users/arunakshu/Downloads/arun.jsk')
+            storePassword 'arun123'
+            keyAlias 'key0'
+            keyPassword 'arun123'
+        }
+    }
     namespace = "com.example.notes"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
@@ -34,7 +48,7 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.release
         }
     }
 }

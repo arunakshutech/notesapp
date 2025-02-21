@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart'; // Add this import
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:notes/Screens/Notescreating/NoteViewUpdateScreen.dart';
 import 'package:notes/Screens/Notescreating/widgets/NoteCard.dart';
 import 'package:notes/Screens/Notescreating/widgets/NoteSearch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +22,13 @@ class _NotesScreenState extends State<NotesScreen> {
   List<String> tags = [];
   Set<int> selectedNotes = {};
   bool isSelectionMode = false;
+  final List<Color> cardColors = [
+    Colors.orange.shade100,
+    Colors.blue.shade100,
+    Colors.green.shade100,
+    Colors.purple.shade100,
+    Colors.red.shade100,
+  ];
 
   @override
   void initState() {
@@ -28,14 +36,16 @@ class _NotesScreenState extends State<NotesScreen> {
     _loadNotes();
     _loadCategories();
   }
-// Show confirmation dialog for deletion
+
+  // Show confirmation dialog for deletion
   void _showDeleteDialog(String category) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Delete Category'),
-          content: Text('Are you sure you want to delete "$category"? All notes under this category will also be deleted.'),
+          content: Text(
+              'Are you sure you want to delete "$category"? All notes under this category will also be deleted.'),
           actions: [
             TextButton(
               child: Text('Cancel'),
@@ -91,6 +101,46 @@ class _NotesScreenState extends State<NotesScreen> {
         SnackBar(content: Text('Failed to load categories: $e')),
       );
     }
+  }
+  
+  Widget _buildCategoryChips() {
+    return SizedBox(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length + 1,
+        itemBuilder: (context, index) {
+          if (index < categories.length) {
+            final category = categories[index];
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: GestureDetector(
+                onLongPress: () {
+                  if (category != 'All') {
+                    _showDeleteDialog(category);
+                  }
+                },
+                child: ChoiceChip(
+                  key: ValueKey(category),
+                  label: Text(category),
+                  selected: selectedCategory == category,
+                  onSelected: (selected) {
+                    setState(() {
+                      selectedCategory = category;
+                    });
+                  },
+                ),
+              ),
+            );
+          } else {
+            return IconButton(
+              icon: Icon(Icons.add_circle_outline),
+              onPressed: _showAddTagDialog,
+            );
+          }
+        },
+      ),
+    );
   }
 
   Future<void> _saveCategories() async {
@@ -189,43 +239,107 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: isSelectionMode?IconButton(onPressed:()=>{
-          
-          setState(() {
-            selectedNotes={};
-          isSelectionMode=false;
-        })}, icon:Icon(Icons.cancel)):null,
-        title: Text(
-            isSelectionMode ? "${selectedNotes.length} Selected" : 'Notes App'),
-        actions: [
-          if (isSelectionMode)
-            IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: _deleteSelectedNotes,
-            ),
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: NotesSearch(notes),
-              );
-            },
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: _refreshNotes,
-        child: Column(
-          children: [
-            _buildCategoryChips(),
-            Expanded(
-              child: ListView.builder(
-                itemCount: notes.length,
-                itemBuilder: (context, index) {
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              leading: isSelectionMode
+                  ? IconButton(
+                      onPressed: () {
+                        setState(() {
+                          selectedNotes = {};
+                          isSelectionMode = false;
+                        });
+                      },
+                      icon: Icon(Icons.cancel),
+                    )
+                  : null,
+              expandedHeight: 200.0,
+              pinned: true,
+              floating: true,
+              backgroundColor: const Color.fromARGB(255, 247, 220, 190),
+              snap: true,
+              flexibleSpace: FlexibleSpaceBar(
+                title: AnimatedSwitcher(
+                  duration: Duration(milliseconds: 300),
+                  child: Text(
+                    style: TextStyle(
+                        color: isSelectionMode ? Colors.black : Colors.white),
+                    isSelectionMode
+                        ? "${selectedNotes.length} Selected"
+                        : 'Notes App',
+                    key: ValueKey(isSelectionMode),
+                  ),
+                ),
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      'https://static.vecteezy.com/system/resources/thumbnails/017/506/209/small_2x/collection-of-colorful-variety-paper-note-pad-reminder-sticky-notes-pin-paper-yellow-on-cork-bulletin-board-photo.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                    Container(
+                        color: isSelectionMode
+                            ? const Color.fromARGB(255, 247, 220, 190)
+                            : Colors.black.withOpacity(0.3)),
+                  ],
+                ),
+              ),
+              actions: [
+                isSelectionMode == true
+                    ? IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: _deleteSelectedNotes,
+                      )
+                    : AnimatedContainer(
+                        duration: Duration(milliseconds: 300),
+                        width: MediaQuery.of(context).size.width,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: TextField(
+                                  readOnly: true,
+                                  onTap: () {
+                                    showSearch(
+                                      context: context,
+                                      delegate: NotesSearch(notes, context),
+                                    );
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'Search',
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding:
+                                        EdgeInsets.symmetric(horizontal: 40),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ],
+            ),
+            // Sticky Category Chips
+            SliverPersistentHeader(
+              floating: true,
+              pinned: true,
+              delegate: StickyHeaderDelegate(
+                child: _buildCategoryChips(),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
                   final Note note = notes[index];
-
                   if ((selectedCategory == 'All' ||
                           note.tags == selectedCategory) &&
                       (searchQuery.isEmpty ||
@@ -233,8 +347,7 @@ class _NotesScreenState extends State<NotesScreen> {
                               .toLowerCase()
                               .contains(searchQuery.toLowerCase()))) {
                     return Slidable(
-                      key: Key(index
-                          .toString()), // Ensure each note has a unique key
+                      key: Key(index.toString()),
                       endActionPane: ActionPane(
                         motion: const DrawerMotion(),
                         children: [
@@ -246,18 +359,75 @@ class _NotesScreenState extends State<NotesScreen> {
                           ),
                         ],
                       ),
-                      child: NoteCard(
-                        note: note,
-                        index:index,
-                        isSelected: selectedNotes.contains(index),
-                        onTap: () => _toggleNoteSelection(index),
-                        onLongPress: () => _enterSelectionMode(index),
-                        onStarPressed: () => _toggleNoteImportance(index),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: selectedNotes.contains(index)
+                              ? const Color.fromARGB(255, 130, 130, 130)
+                              : cardColors[index % cardColors.length],
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: ListTile(
+                          leading: note.tags != null
+                              ? Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade100,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    note.tags!,
+                                    style: TextStyle(
+                                      color: Colors.blue.shade900,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          title: Text(
+                            note.title ?? '',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Text(
+                            note.createdDate ?? '',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(
+                              note.important ? Icons.star : Icons.star_border,
+                              color:
+                                  note.important ? Colors.yellow : Colors.grey,
+                            ),
+                            onPressed: () => _toggleNoteImportance(index),
+                          ),
+                          onTap: isSelectionMode
+                              ? () => _toggleNoteSelection(index)
+                              : () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          NoteViewUpdateScreen(
+                                        note: note,
+                                        noteIndex: index,
+                                      ),
+                                    ),
+                                  );
+                                },
+                          onLongPress: () => _enterSelectionMode(index),
+                        ),
                       ),
                     );
                   }
                   return SizedBox.shrink();
                 },
+                childCount: notes.length,
               ),
             ),
           ],
@@ -277,46 +447,6 @@ class _NotesScreenState extends State<NotesScreen> {
     await _loadNotes();
   }
 
-  // Build category chips
-  Widget _buildCategoryChips() {
-    return SizedBox(
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length + 1,
-        itemBuilder: (context, index) {
-          if (index < categories.length) {
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: GestureDetector(
-                onLongPress: () {
-                  if(categories[index]!='All'){
-                        _showDeleteDialog(categories[index]);
-                  }
-                
-                },
-                child: ChoiceChip(
-                  label: Text(categories[index]),
-                  selected: selectedCategory == categories[index],
-                  onSelected: (selected) {
-                    setState(() {
-                      selectedCategory = categories[index];
-                    });
-                  },
-                ),
-              ),
-            );
-          } else {
-            return IconButton(
-              icon: Icon(Icons.add_circle_outline),
-              onPressed: _showAddTagDialog,
-            );
-          }
-        },
-      ),
-    );
-  }
-
   void _showAddTagDialog() {
     TextEditingController tagController = TextEditingController();
     showDialog(
@@ -333,13 +463,15 @@ class _NotesScreenState extends State<NotesScreen> {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               String newTag = tagController.text.trim();
               if (newTag.isNotEmpty && !categories.contains(newTag)) {
                 setState(() {
                   categories.add(newTag);
                 });
                 _saveCategories(); // Save to SharedPreferences
+                 await _saveCategories(); // Save the updated list to SharedPreferences
+                await _loadCategories();
               }
               Navigator.pop(context);
             },
@@ -405,5 +537,31 @@ class _NotesScreenState extends State<NotesScreen> {
         ],
       ),
     );
+  }
+}
+
+class StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  StickyHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 50; // Minimum height of the header
+  @override
+  double get maxExtent => 50; // Maximum height of the header
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white, // Background color of the header
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant StickyHeaderDelegate oldDelegate) {
+    // Return true to force the delegate to rebuild when the child changes
+    return oldDelegate.child != child;
   }
 }

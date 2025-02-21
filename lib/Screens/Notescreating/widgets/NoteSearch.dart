@@ -1,11 +1,12 @@
-
-
 import 'package:flutter/material.dart';
+import 'package:notes/Screens/Notescreating/NoteViewUpdateScreen.dart';
 import 'package:notes/model/note_model.dart';
 
 class NotesSearch extends SearchDelegate {
   final List<Note> notes;
-  NotesSearch(this.notes);
+  
+  BuildContext context;
+  NotesSearch(this.notes, this.context);
 
   @override
   List<Widget> buildActions(BuildContext context) {
@@ -45,10 +46,24 @@ class NotesSearch extends SearchDelegate {
     }).toList();
 
     return ListView(
-      children: results.map((note) => ListTile(
-        title: Text(note.title!),
-        subtitle: Text(note.createdDate!),
-      )).toList(),
+      children: results.map((note) {
+        int index = notes.indexOf(note);
+        return ListTile(
+          title: Text(note.title!),
+          subtitle: Text(note.createdDate!),
+          onTap: () {
+            Navigator.push(
+             context,
+              MaterialPageRoute(
+                builder: (context) => NoteViewUpdateScreen(
+                  note: note,
+                  noteIndex: index,
+                ),
+              ),
+            );
+          },
+        );
+      }).toList(),
     );
   }
 }
