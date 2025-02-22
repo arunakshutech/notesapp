@@ -3,9 +3,8 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-
+import 'package:http/http.dart' as http;
 import '../../model/note_model.dart';
-
 
 class NoteCreateScreen extends StatefulWidget {
   const NoteCreateScreen({super.key});
@@ -18,17 +17,42 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
   final quill.QuillController _controller = quill.QuillController.basic();
   final TextEditingController _titleController = TextEditingController();
 
+  Future<String?> fetchImageUrl(String query) async {
+    const String accessKey =
+        'kLkfb1Facfj74y-trU7FzeiIT6iw8XsFO6ijo0xDk90'; // Get your key from Unsplash
+    final String url =
+        'https://api.unsplash.com/search/photos?query=$query&client_id=$accessKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data['results'];
+        if (results.isNotEmpty) {
+          return results[0]['urls']['small']; // Use the first image
+        }
+      }
+    } catch (e) {
+      print('Error fetching image: $e');
+    }
+    return null; // Return null if no image is found
+  }
+
   Future<void> saveNote() async {
     final title = _titleController.text.trim();
     final content = jsonEncode(_controller.document.toDelta().toJson());
     final createdDate = DateTime.now().toString().substring(0, 16);
 
     if (title.isNotEmpty && content.isNotEmpty) {
+      // Fetch image URL based on the title
+      final imageUrl = await fetchImageUrl(title);
+
       final newNote = Note(
         title: title,
         content: content,
         createdDate: createdDate,
         important: false,
+        imageUrl: imageUrl, // Save the image URL
       );
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -116,8 +140,7 @@ class _NoteCreateScreenState extends State<NoteCreateScreen> {
                     EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
-                  borderSide:
-                      BorderSide(color: Colors.deepPurple, width: 2),
+                  borderSide: BorderSide(color: Colors.deepPurple, width: 2),
                 ),
               ),
             ),

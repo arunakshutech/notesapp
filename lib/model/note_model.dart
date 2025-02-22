@@ -6,6 +6,7 @@ class Note {
   String? tags;
   String? content;
   bool important;
+  String? imageUrl;
 
   Note({
     this.title,
@@ -14,6 +15,7 @@ class Note {
     this.content,
     this.tags,
     this.important = false,
+    this.imageUrl
   });
 
   // Convert a Note into a Map. The keys must correspond to the names of the
@@ -26,6 +28,7 @@ class Note {
       'content':content,
       'tags':tags,
       'important': important,
+      'imageUrl':imageUrl
     };
   }
 
@@ -38,6 +41,7 @@ class Note {
       content: map['content'],
       tags: map['tags'],
       important: map['important'],
+      imageUrl:map['imageUrl']
     );
   }
 }

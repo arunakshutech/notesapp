@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:notes/Screens/Notescreating/NotesScreen.dart';
 import 'package:notes/Screens/Notescreating/NotesCreating.dart';
@@ -18,6 +19,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+    textTheme: GoogleFonts.latoTextTheme(),
+  ),
        localizationsDelegates: const [
     GlobalMaterialLocalizations.delegate,
     GlobalCupertinoLocalizations.delegate,

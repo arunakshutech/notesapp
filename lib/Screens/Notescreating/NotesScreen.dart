@@ -1,8 +1,10 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart'; // Import Lottie package
 import 'package:notes/Screens/Notescreating/NoteViewUpdateScreen.dart';
-import 'package:notes/Screens/Notescreating/widgets/NoteCard.dart';
 import 'package:notes/Screens/Notescreating/widgets/NoteSearch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:notes/model/note_model.dart';
@@ -16,10 +18,7 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   List<Note> notes = [];
-  String selectedCategory = 'All';
   String searchQuery = "";
-  List<String> categories = ['All'];
-  List<String> tags = [];
   Set<int> selectedNotes = {};
   bool isSelectionMode = false;
   final List<Color> cardColors = [
@@ -34,127 +33,6 @@ class _NotesScreenState extends State<NotesScreen> {
   void initState() {
     super.initState();
     _loadNotes();
-    _loadCategories();
-  }
-
-  // Show confirmation dialog for deletion
-  void _showDeleteDialog(String category) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Category'),
-          content: Text(
-              'Are you sure you want to delete "$category"? All notes under this category will also be deleted.'),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Delete'),
-              onPressed: () {
-                _deleteCategory(category);
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Delete category and associated notes
-  void _deleteCategory(String category) {
-    setState(() {
-      // Remove category
-      categories.remove(category);
-
-      // Remove notes under the deleted category
-      notes.removeWhere((note) => note.tags == category);
-    });
-    _saveCategories();
-    _saveNotes();
-  }
-
-  Future<void> _loadCategories() async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      // Load saved categories from SharedPreferences
-      List<String> savedCategories = prefs.getStringList('categories') ?? [];
-
-      // Ensure 'All' is always the first category
-      setState(() {
-        categories = ['All', ...savedCategories];
-        tags = [
-          'None',
-          ...savedCategories
-        ]; // If you also want to load tags similarly
-      });
-
-      print(tags); // For debugging
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load categories: $e')),
-      );
-    }
-  }
-  
-  Widget _buildCategoryChips() {
-    return SizedBox(
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length + 1,
-        itemBuilder: (context, index) {
-          if (index < categories.length) {
-            final category = categories[index];
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: GestureDetector(
-                onLongPress: () {
-                  if (category != 'All') {
-                    _showDeleteDialog(category);
-                  }
-                },
-                child: ChoiceChip(
-                  key: ValueKey(category),
-                  label: Text(category),
-                  selected: selectedCategory == category,
-                  onSelected: (selected) {
-                    setState(() {
-                      selectedCategory = category;
-                    });
-                  },
-                ),
-              ),
-            );
-          } else {
-            return IconButton(
-              icon: Icon(Icons.add_circle_outline),
-              onPressed: _showAddTagDialog,
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  Future<void> _saveCategories() async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<String> categoriesToSave =
-          categories.where((category) => category != 'All').toList();
-      await prefs.setStringList('categories', categoriesToSave);
-      _loadCategories();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save categories: $e')),
-      );
-    }
   }
 
   Future<void> _loadNotes() async {
@@ -184,57 +62,6 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
-  void _showTagDialog(int index) {
-    String selectedTag = notes[index].tags ?? ''; // Initialize with current tag
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text("Add Tags to Note"),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: tags.map((tag) {
-                    return RadioListTile(
-                      key: Key(tag),
-                      title: Text(tag),
-                      value: tag,
-                      groupValue: selectedTag,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTag = value.toString();
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      notes[index].tags = selectedTag;
-                      _saveNotes();
-                      _loadNotes();
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: Text("Save"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -243,6 +70,7 @@ class _NotesScreenState extends State<NotesScreen> {
         onRefresh: _refreshNotes,
         child: CustomScrollView(
           slivers: [
+            // SliverAppBar (Always Visible)
             SliverAppBar(
               leading: isSelectionMode
                   ? IconButton(
@@ -255,7 +83,7 @@ class _NotesScreenState extends State<NotesScreen> {
                       icon: Icon(Icons.cancel),
                     )
                   : null,
-              expandedHeight: 200.0,
+              expandedHeight: 130.0,
               pinned: true,
               floating: true,
               backgroundColor: const Color.fromARGB(255, 247, 220, 190),
@@ -264,8 +92,11 @@ class _NotesScreenState extends State<NotesScreen> {
                 title: AnimatedSwitcher(
                   duration: Duration(milliseconds: 300),
                   child: Text(
-                    style: TextStyle(
-                        color: isSelectionMode ? Colors.black : Colors.white),
+                    style: GoogleFonts.pacifico(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      color: isSelectionMode ? Colors.black : Colors.white,
+                    ),
                     isSelectionMode
                         ? "${selectedNotes.length} Selected"
                         : 'Notes App',
@@ -328,108 +159,176 @@ class _NotesScreenState extends State<NotesScreen> {
                       ),
               ],
             ),
-            // Sticky Category Chips
-            SliverPersistentHeader(
-              floating: true,
-              pinned: true,
-              delegate: StickyHeaderDelegate(
-                child: _buildCategoryChips(),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final Note note = notes[index];
-                  if ((selectedCategory == 'All' ||
-                          note.tags == selectedCategory) &&
-                      (searchQuery.isEmpty ||
-                          note.title!
-                              .toLowerCase()
-                              .contains(searchQuery.toLowerCase()))) {
-                    return Slidable(
-                      key: Key(index.toString()),
-                      endActionPane: ActionPane(
-                        motion: const DrawerMotion(),
-                        children: [
-                          SlidableAction(
-                            onPressed: (context) => _showTagDialog(index),
-                            backgroundColor: Colors.blue,
-                            icon: Icons.label,
-                            label: 'Add To Tag',
-                          ),
-                        ],
+            // Conditional Sliver: Lottie Animation or Grid View
+            if (notes.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Lottie.asset(
+                        'assets/animation/empty.json', // Path to your Lottie JSON file
+                        width: 300,
+                        height: 300,
+                        fit: BoxFit.cover,
                       ),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: selectedNotes.contains(index)
-                              ? const Color.fromARGB(255, 130, 130, 130)
-                              : cardColors[index % cardColors.length],
+                      SizedBox(height: 20),
+                      Text(
+                        'No Notes Found',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, // Number of columns in the grid
+                  crossAxisSpacing: 10, // Spacing between columns
+                  mainAxisSpacing: 10, // Spacing between rows
+                  childAspectRatio: 0.8, // Aspect ratio of each card
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final Note note = notes[index];
+                    return GestureDetector(
+                      onTap: isSelectionMode
+                          ? () => _toggleNoteSelection(index)
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => NoteViewUpdateScreen(
+                                    note: note,
+                                    noteIndex: index,
+                                  ),
+                                ),
+                              );
+                            },
+                      onLongPress: () => _enterSelectionMode(index),
+                      child: Card(
+                        color: selectedNotes.contains(index)
+                            ? const Color.fromARGB(255, 0, 0, 0)
+                            : null,
+                        elevation: 5,
+                        shadowColor:
+                            const Color.fromARGB(255, 0, 0, 0).withOpacity(0.9),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
-                        child: ListTile(
-                          leading: note.tags != null
-                              ? Container(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
-                                    borderRadius: BorderRadius.circular(10),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Background Image or Placeholder
+                            if (note.imageUrl != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: Image.network(
+                                  note.imageUrl!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              Container(
+                                color: Colors.grey.shade200,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.image,
+                                    color: const Color.fromARGB(255, 0, 0, 0),
+                                    size: 50,
                                   ),
-                                  child: Text(
-                                    note.tags!,
-                                    style: TextStyle(
-                                      color: Colors.blue.shade900,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          title: Text(
-                            note.title ?? '',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                                ),
+                              ),
+                            // Gradient Overlay
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    selectedNotes.contains(index)
+                                        ? const Color.fromARGB(255, 165, 150, 150)
+                                        : const Color.fromARGB(0, 0, 0, 0),
+                                    Colors.black,
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                          subtitle: Text(
-                            note.createdDate ?? '',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              note.important ? Icons.star : Icons.star_border,
-                              color:
-                                  note.important ? Colors.yellow : Colors.grey,
-                            ),
-                            onPressed: () => _toggleNoteImportance(index),
-                          ),
-                          onTap: isSelectionMode
-                              ? () => _toggleNoteSelection(index)
-                              : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          NoteViewUpdateScreen(
-                                        note: note,
-                                        noteIndex: index,
+                            // Content
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // Star Icon at Top-Right Corner
+                                  selectedNotes.contains(index)
+                                      ? Align(
+                                          alignment: Alignment.topRight,
+                                          child: IconButton(
+                                              onPressed: () {},
+                                              icon: Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                              )))
+                                      : Align(
+                                          alignment: Alignment.topRight,
+                                          child: IconButton(
+                                            icon: Icon(
+                                              note.important
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: note.important
+                                                  ? Colors.yellow
+                                                  : Colors.white,
+                                            ),
+                                            onPressed: () =>
+                                                _toggleNoteImportance(index),
+                                          ),
+                                        ),
+                                  // Title and Date at Bottom
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Title (Max 2 Lines)
+                                      Text(
+                                        note.title ?? '',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                          color: const Color.fromARGB(255, 255, 255, 255),
+                                        ),
+                                        maxLines: 2, // Limit to 2 lines
+                                        overflow: TextOverflow.ellipsis, // Show dots if text exceeds
                                       ),
-                                    ),
-                                  );
-                                },
-                          onLongPress: () => _enterSelectionMode(index),
+                                      SizedBox(height: 4),
+                                      // Date
+                                      Text(
+                                        note.createdDate ?? '',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
-                  }
-                  return SizedBox.shrink();
-                },
-                childCount: notes.length,
+                  },
+                  childCount: notes.length,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -445,41 +344,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _refreshNotes() async {
     await _loadNotes();
-  }
-
-  void _showAddTagDialog() {
-    TextEditingController tagController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Add Tag"),
-        content: TextField(
-          controller: tagController,
-          decoration: const InputDecoration(hintText: "Enter tag"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () async {
-              String newTag = tagController.text.trim();
-              if (newTag.isNotEmpty && !categories.contains(newTag)) {
-                setState(() {
-                  categories.add(newTag);
-                });
-                _saveCategories(); // Save to SharedPreferences
-                 await _saveCategories(); // Save the updated list to SharedPreferences
-                await _loadCategories();
-              }
-              Navigator.pop(context);
-            },
-            child: const Text("Add"),
-          ),
-        ],
-      ),
-    );
   }
 
   void _toggleNoteSelection(int index) {
@@ -537,31 +401,5 @@ class _NotesScreenState extends State<NotesScreen> {
         ],
       ),
     );
-  }
-}
-
-class StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-
-  StickyHeaderDelegate({required this.child});
-
-  @override
-  double get minExtent => 50; // Minimum height of the header
-  @override
-  double get maxExtent => 50; // Maximum height of the header
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Colors.white, // Background color of the header
-      child: child,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant StickyHeaderDelegate oldDelegate) {
-    // Return true to force the delegate to rebuild when the child changes
-    return oldDelegate.child != child;
   }
 }
