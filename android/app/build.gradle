@@ -8,13 +8,13 @@ plugins {
 android {
     signingConfigs {
         debug {
-            storeFile file('C:\\Users\\91950\\Downloads\\arun.jsk')
+            storeFile file('/Users/arunakshu/Downloads/arun.jsk')
             storePassword 'arun123'
             keyAlias 'key0'
             keyPassword 'arun123'
         }
         release {
-            storeFile file('"C:/Users/91950/Downloads/arun.jsk"')
+            storeFile file('/Users/arunakshu/Downloads/arun.jsk')
             storePassword 'arun123'
             keyAlias 'key0'
             keyPassword 'arun123'

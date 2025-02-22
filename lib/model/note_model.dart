@@ -1,5 +1,6 @@
 
 class Note {
+  String id;
   String? title;
   String? createdDate;
   String? category;
@@ -9,6 +10,7 @@ class Note {
   String? imageUrl;
 
   Note({
+    required this.id,
     this.title,
     this.createdDate,
     this.category,
@@ -22,6 +24,7 @@ class Note {
   // columns in the database.
   Map<String, dynamic> toMap() {
     return {
+      'id':id,
       'title': title,
       'createdDate': createdDate,
       'category': category,
@@ -35,6 +38,7 @@ class Note {
   // Extract a Note object from a Map.
   factory Note.fromMap(Map<String, dynamic> map) {
     return Note(
+      id: map['id'],
       title: map['title'],
       createdDate: map['createdDate'],
       category: map['category'],

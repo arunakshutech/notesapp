@@ -1,7 +1,7 @@
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart'; // Import Lottie package
 import 'package:notes/Screens/Notescreating/NoteViewUpdateScreen.dart';
@@ -35,20 +35,46 @@ class _NotesScreenState extends State<NotesScreen> {
     _loadNotes();
   }
 
-  Future<void> _loadNotes() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final notesJson = prefs.getStringList('notesList') ?? [];
+Future<void> _loadNotes() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final notesJson = prefs.getStringList('notesList');
+
+    // Check if notesJson is null or empty
+    if (notesJson == null || notesJson.isEmpty) {
       setState(() {
-        notes =
-            notesJson.map((note) => Note.fromMap(json.decode(note))).toList();
+        notes = []; // Set an empty list if no notes are found
       });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load notes: $e')),
-      );
+      return;
     }
+
+    // Decode notes from JSON
+    List<Note> loadedNotes = notesJson
+        .map((note) => Note.fromMap(json.decode(note)))
+        .toList();
+
+    // Sort notes:
+    // 1. Important notes first
+    // 2. Newly created notes first within each category
+    loadedNotes.sort((a, b) {
+      if (a.important == b.important) {
+        // If both are important or both are not important, sort by creation date (newest first)
+        return b.createdDate!.compareTo(a.createdDate!);
+      } else {
+        // Important notes come first
+        return a.important ? -1 : 1;
+      }
+    });
+
+    setState(() {
+      notes = loadedNotes;
+    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load notes: $e')),
+    );
   }
+}
 
   Future<void> _saveNotes() async {
     try {
@@ -140,7 +166,8 @@ class _NotesScreenState extends State<NotesScreen> {
                                     );
                                   },
                                   decoration: InputDecoration(
-                                    hintText: 'Search',
+                                    suffixIcon:Icon(Icons.search),
+                                    hintText: 'Search ...',
                                     hintStyle: TextStyle(color: Colors.grey),
                                     filled: true,
                                     fillColor: Colors.white,
@@ -312,6 +339,7 @@ class _NotesScreenState extends State<NotesScreen> {
                                       Text(
                                         note.createdDate ?? '',
                                         style: TextStyle(
+                                          // ignore: deprecated_member_use
                                           color: Colors.white.withOpacity(0.8),
                                           fontSize: 14,
                                         ),
@@ -368,6 +396,7 @@ class _NotesScreenState extends State<NotesScreen> {
     setState(() {
       notes[index].important = !notes[index].important;
       _saveNotes();
+      _loadNotes();
     });
   }
 

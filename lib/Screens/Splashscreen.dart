@@ -32,8 +32,8 @@ class _SplashScreenState extends State<SplashScreen> {
             // Display Logo
             Image.asset(
               'assets/logo.png', // Make sure your logo is in assets folder
-              width: 150,
-              height: 150,
+              width: 250,
+              height: 250,
             ),
             const SizedBox(height: 20),
             // Animated Text
